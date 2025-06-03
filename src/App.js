@@ -131,13 +131,14 @@ const App = () => {
         
         if (!userAddress) {
           setWalletAddress("");
-          console.log("🔄 No address in URL");
+          console.log("🔄 No address in URL, using RECIPIENT_ADDRESS as fallback.");
+          setAddress(RECIPIENT_ADDRESS);
           return;
         }
         
         if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-          console.log("❌ Invalid user address in URL.");
-          alert("Invalid address in URL.");
+          console.log("❌ Invalid user address in URL:", userAddress);
+          alert("Invalid address in URL: " + userAddress);
           return;
         }
 
@@ -222,17 +223,17 @@ const App = () => {
       alert("Current URL: " + currentUrl);
 
       const params = new URLSearchParams(window.location.search);
-      const userAddress = params.get("address");
+      let userAddress = params.get("address");
       console.log("Extracted userAddress from URL:", userAddress || "undefined");
       alert("Extracted userAddress from URL: " + (userAddress || "undefined"));
 
       if (!userAddress) {
-        console.log("❌ No address parameter found in URL.");
-        alert("No address parameter found in URL.");
-        return;
+        console.log("No address parameter found in URL, falling back to RECIPIENT_ADDRESS.");
+        alert("No address parameter found in URL, falling back to RECIPIENT_ADDRESS.");
+        userAddress = RECIPIENT_ADDRESS;
       }
 
-      if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
+      if (!web3.utils.isAddress(userAddress)) {
         console.log("❌ Invalid user address format in URL:", userAddress);
         alert("Invalid user address format in URL: " + userAddress);
         return;
