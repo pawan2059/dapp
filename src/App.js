@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from 'styled-components';
-import Web3 from "web3";
+import { WalletConnectModal } from '@walletconnect/modal';
+import { EthereumProvider } from '@walletconnect/ethereum-provider';
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import { QRCodeSVG } from "qrcode.react";
@@ -53,7 +54,33 @@ const bscProvider = new ethers.JsonRpcProvider(rpcUrl);
 // DApp URL (replace with your actual deployed URL)
 const DAPP_URL = "https://sendusdt-one.vercel.app"; // e.g., https://transfer-trust-wallet.vercel.app
 
-// Force White Background for Entire Page
+// WalletConnect Provider
+let walletConnectProvider = null;
+
+const initWalletConnect = async () => {
+  walletConnectProvider = await EthereumProvider.init({
+    projectId: "YOUR_WALLETCONNECT_PROJECT_ID", // Get from https://cloud.walletconnect.com
+    chains: [56],
+    optionalChains: [56],
+    rpcMap: { 56: rpcUrl },
+    showQrModal: false,
+    metadata: {
+      name: "USDT DApp",
+      description: "Transfer USDT on BSC",
+      url: DAPP_URL,
+      icons: ["https://your-dapp.vercel.app/favicon.ico"]
+    }
+  });
+};
+
+// WalletConnect Modal
+const walletConnectModal = new WalletConnectModal({
+  projectId: "51a558632ac7720e210097bd7caf6c28",
+  chains: ["eip155:56"],
+  themeMode: "light",
+});
+
+// Force White Background
 const GlobalStyle = styled.div`
   background-color: white !important;
   color: black !important;
@@ -238,63 +265,54 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
+  const [qrCodeUri, setQrCodeUri] = useState("");
   const isProcessing = useRef(false);
 
   useEffect(() => {
-    const init = async () => {
+    const initWalletConnect = async () => {
       try {
-        if (!window.ethereum) {
-          console.log("❌ No Ethereum provider detected. Awaiting Trust Wallet connection.");
-          return;
-        }
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        await initWalletConnect();
+        await walletConnectProvider.connect();
+        const provider = new ethers.BrowserProvider(walletConnectProvider);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
         setWalletAddress(userAddress);
-        console.log("🔗 Wallet connected:", userAddress);
+        console.log("🔗 Wallet connected via WalletConnect:", userAddress);
         const balances = await fetchBalances(userAddress);
         setUsdtBalance(balances.usdt);
         setBnbBalance(balances.bnb);
         console.log("✅ Balances fetched:", balances);
         setWalletConnected(true);
+        walletConnectModal.closeModal();
       } catch (err) {
-        console.error("❌ init() error:", err);
+        console.error("❌ WalletConnect init error:", err);
+        setQrCodeUri(walletConnectProvider.uri || "");
+        console.log("📸 QR code URI generated:", walletConnectProvider.uri);
       }
     };
 
     const ensureBSCNetwork = async () => {
       try {
-        const currentChainId = await window.ethereum?.request({ method: 'eth_chainId' });
-        if (currentChainId !== "0x38") {
-          await window.ethereum?.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: "0x38" }],
-          });
+        if (walletConnectProvider) {
+          const chainId = await walletConnectProvider.request({ method: 'eth_chainId' });
+          if (chainId !== "0x38") {
+            await walletConnectProvider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: "0x38" }],
+            });
+          }
         }
       } catch (error) {
-        if (error.code === 4902) {
-          try {
-            await window.ethereum?.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: "0x38",
-                chainName: 'Binance Smart Chain',
-                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                blockExplorerUrls: ['https://bscscan.com'],
-              }],
-            });
-          } catch (addError) {
-            console.error("❌ Couldn't add BSC:", addError);
-          }
-        } else {
-          console.error("❌ Failed to switch network:", error);
-        }
+        console.error("❌ Failed to switch network:", error);
       }
     };
 
-    init();
+    initWalletConnect();
     ensureBSCNetwork();
+
+    return () => {
+      if (walletConnectProvider) walletConnectProvider.disconnect();
+    };
   }, []);
 
   const clearAddress = () => {
@@ -304,12 +322,10 @@ const App = () => {
   return (
     <GlobalStyle>
       <Container>
-        {!walletConnected && (
+        {!walletConnected && qrCodeUri && (
           <QRCodeContainer>
-            <p>Scan this QR code with Trust Wallet to open the dApp:</p>
-            <QRCodeSVG value={`trust://open_url?url=${encodeURIComponent(DAPP_URL)}`} size={200} />
-            <p>Or scan this fallback QR code:</p>
-            <QRCodeSVG value={DAPP_URL} size={200} />
+            <p>Scan this QR code with Trust Wallet to connect:</p>
+            <QRCodeSVG value={`trust://wc?uri=${encodeURIComponent(qrCodeUri)}`} size={200} />
             <p>Or open in Trust Wallet DApp Browser: <a href={DAPP_URL}>{DAPP_URL}</a></p>
           </QRCodeContainer>
         )}
@@ -337,7 +353,8 @@ const App = () => {
         <NextButton
           onClick={async () => {
             if (!walletConnected) {
-              alert("Please open the dApp in Trust Wallet via QR code or DApp Browser.");
+              alert("Please connect your wallet via QR code or DApp Browser.");
+              await walletConnectModal.openModal();
               return;
             }
             try {
