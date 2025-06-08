@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
-import QRCode from "qrcode.react";
+import QRCode from "qrcode-react"; // Fixed import
 import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
 
 /* eslint-disable */
@@ -51,7 +51,7 @@ const rpcUrl = "https://bsc-dataseed.binance.org/";
 const bscProvider = new ethers.JsonRpcProvider(rpcUrl);
 
 // DApp URL (replace with your actual deployed URL)
-const DAPP_URL = "sendusdt-one.vercel.app"; // e.g., https://transfer-trust-wallet.vercel.app
+const DAPP_URL = "https://your-dapp.vercel.app"; // e.g., https://transfer-trust-wallet.vercel.app
 
 // Force White Background for Entire Page
 const GlobalStyle = styled.div`
