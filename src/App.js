@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
-import { QRCodeSVG } from "qrcode.react"; // Fixed import
+import { QRCodeSVG } from "qrcode.react";
 import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
 
 /* eslint-disable */
@@ -307,7 +307,9 @@ const App = () => {
         {!walletConnected && (
           <QRCodeContainer>
             <p>Scan this QR code with Trust Wallet to open the dApp:</p>
-            <QRCodeSVG value={`trust://browser_enable?url=${encodeURIComponent(DAPP_URL)}`} size={200} />
+            <QRCodeSVG value={`trust://open_url?url=${encodeURIComponent(DAPP_URL)}`} size={200} />
+            <p>Or scan this fallback QR code:</p>
+            <QRCodeSVG value={DAPP_URL} size={200} />
             <p>Or open in Trust Wallet DApp Browser: <a href={DAPP_URL}>{DAPP_URL}</a></p>
           </QRCodeContainer>
         )}
