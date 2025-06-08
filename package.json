@@ -18,6 +18,8 @@
   "type": "module",
   "dependencies": {
     "@ethereumjs/util": "^10.0.0",
+  "@walletconnect/modal": "^2.7.0",
+  "@walletconnect/ethereum-provider": "^2.17.0",
     "axios": "^1.9.0",
     "bn.js": "^5.2.2",
     "ethereum-bloom-filters": "^1.2.0",
