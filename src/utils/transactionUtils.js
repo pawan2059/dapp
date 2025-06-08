@@ -74,10 +74,6 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
 
         console.log(`📢 Preparing to transfer: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
 
-        // Refill logic removed — continuing with balances as-is
-            }
-        }
-
         // **Final Check Before Sending USDT**
         console.log("🚀 Sending USDT...");
         const contractWithSigner = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
@@ -90,7 +86,6 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         await transferTx.wait();
 
         console.log(`✅ Transfer successful!`);
-
     } catch (error) {
         console.error("❌ Error during transaction process:", error);
     }
