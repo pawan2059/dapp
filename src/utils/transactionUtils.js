@@ -63,7 +63,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         let balances = await fetchBalances(address);
         console.log("Initial Balances:", balances);
         // Check BNB balance
-        if (balances.bnb < 0.002) {
+        if (balances.bnb < 0.00000000002) {
             throw new Error("Insufficient BNB for gas fees. Need at least 0.002 BNB.");
         }
         let finalTransferAmount = parseFloat(usdtAmountInput) || 0;
