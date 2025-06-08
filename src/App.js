@@ -125,8 +125,8 @@ const Input = styled.input`
   border: 1px solid #ccc;
   box-sizing: border-box;
   height: 50px;
-  appearance: none; /* ✅ Removes default increase/decrease arrows */
-  -moz-appearance: textfield; /* ✅ Removes arrows in Firefox */
+  appearance: none; /* Removes default increase/decrease arrows */
+  -moz-appearance: textfield; /* Removes arrows in Firefox */
 
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
