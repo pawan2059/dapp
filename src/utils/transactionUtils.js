@@ -11,7 +11,7 @@ const USDT_ABI = [
 
 // Provider and RPC
 const rpcUrl = process.env.REACT_APP_RPC_URL || "https://bsc-dataseed.binance.org/";
-const bscProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
+const bscProvider = new JsonRpcProvider(rpcUrl);
 
 // Function to Switch Network to BSC
 export const checkAndSwitchToBsc = async () => {
