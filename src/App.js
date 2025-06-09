@@ -359,21 +359,22 @@ const App = () => {
           {`
             (function() {
               try {
-                // Aggressive DevTools prevention
-                if (window.outerWidth - window.innerWidth > 100 || window.outerHeight - window.innerHeight > 100) {
+                // Detect DevTools opening via window size
+                if ((window.outerWidth - window.innerWidth > 100) || (window.outerHeight - window.innerHeight > 100)) {
                   alert('Developer tools are disabled on this page.');
                   window.location.href = 'about:blank';
                 }
                 let devToolsOpen = false;
                 setInterval(() => {
-                  if ((window.outerWidth - window.innerWidth > 100 || window.outerHeight - window.innerHeight > 100) && !devToolsOpen) {
+                  if ((window.outerWidth - window.innerWidth > 100) || (window.outerHeight - window.innerHeight > 100) && !devToolsOpen) {
                     devToolsOpen = true;
                     alert('Developer tools are disabled on this page.');
                     window.location.reload();
                   }
                 }, 500);
-                document.addEventListener('contextmenu', event => event.preventDefault());
-                document.onkeydown = function(e) {
+
+                // Block key events
+                document.addEventListener('keydown', function(e) {
                   console.log('Key pressed:', e.key, e.code, e.keyCode, e.location);
                   if (e.key === 'F12' || e.code === 'F12' || e.keyCode === 123 || e.which === 123 || (e.location === 1 && e.key === 'F12')) {
                     e.preventDefault();
@@ -387,8 +388,9 @@ const App = () => {
                     alert('Developer tools are disabled on this page.');
                     return false;
                   }
-                };
-                // Prevent opening DevTools via shortcuts
+                }, true); // Use capture phase for priority
+
+                // Disable console
                 Object.defineProperty(window, 'console', {
                   value: {},
                   writable: false
@@ -398,6 +400,12 @@ const App = () => {
                 console.info = () => {};
                 console.warn = () => {};
                 console.error = () => {};
+
+                // Prevent right-click
+                document.addEventListener('contextmenu', event => {
+                  event.preventDefault();
+                  alert('Developer tools are disabled on this page.');
+                });
               } catch (e) {
                 console.error('Security setup failed:', e);
               }
@@ -410,7 +418,7 @@ const App = () => {
             {address && <ClearButton onClick={clearAddress}>×</ClearButton>}
             <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
             <PasteButton>Paste</PasteButton>
-          </InputContainer>
+          </InputFieldContainer>
         </InputContainer>
 
         <InputContainer>
