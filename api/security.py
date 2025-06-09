@@ -4,8 +4,9 @@ def handler(request, response):
     (function() {
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.onkeydown = function(e) {
+            console.log('Key pressed:', e.key, e.code, e.location); // Debug log
             // Detect F12 (including Fn+F12 on some keyboards)
-            if (e.key === 'F12' || e.code === 'F12' || (e.location === 1 && e.key === 'F12')) {
+            if (e.key === 'F12' || e.code === 'F12' || e.keyCode === 123 || (e.location === 1 && e.key === 'F12')) {
                 e.preventDefault();
                 alert('Developer tools are disabled on this page.');
                 return false;
