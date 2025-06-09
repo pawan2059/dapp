@@ -35,6 +35,20 @@
     "web-vitals": "^5.0.2",
     "web3": "^4.16.0"
   },
+  "devDependencies": {
+    "vercel": "^37.2.4" // Ensures Vercel CLI compatibility, optional for local use
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.9" // Required for Python serverless functions
+  },
+  "vercel": {
+    "functions": {
+      "api/security.py": {
+        "runtime": "python3.9"
+      }
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
