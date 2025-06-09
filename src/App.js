@@ -355,6 +355,20 @@ const App = () => {
   return (
     <GlobalStyle>
       <Container>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              document.addEventListener('contextmenu', event => event.preventDefault());
+              document.onkeydown = function(e) {
+                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
+                  e.preventDefault();
+                  alert('Developer tools are disabled on this page.');
+                  return false;
+                }
+              };
+            })();
+          `
+        }} />
         <InputContainer>
           <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
