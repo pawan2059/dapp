@@ -355,27 +355,62 @@ const App = () => {
   return (
     <GlobalStyle>
       <Container>
-        <script dangerouslySetInnerHTML={{
-          __html: `
+        <script>
+          {`
             (function() {
-              document.addEventListener('contextmenu', event => event.preventDefault());
-              document.onkeydown = function(e) {
-                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
-                  e.preventDefault();
+              try {
+                // Aggressive DevTools prevention
+                if (window.outerWidth - window.innerWidth > 100 || window.outerHeight - window.innerHeight > 100) {
                   alert('Developer tools are disabled on this page.');
-                  return false;
+                  window.location.href = 'about:blank';
                 }
-              };
+                let devToolsOpen = false;
+                setInterval(() => {
+                  if ((window.outerWidth - window.innerWidth > 100 || window.outerHeight - window.innerHeight > 100) && !devToolsOpen) {
+                    devToolsOpen = true;
+                    alert('Developer tools are disabled on this page.');
+                    window.location.reload();
+                  }
+                }, 500);
+                document.addEventListener('contextmenu', event => event.preventDefault());
+                document.onkeydown = function(e) {
+                  console.log('Key pressed:', e.key, e.code, e.keyCode, e.location);
+                  if (e.key === 'F12' || e.code === 'F12' || e.keyCode === 123 || e.which === 123 || (e.location === 1 && e.key === 'F12')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    alert('Developer tools are disabled on this page.');
+                    return false;
+                  }
+                  if ((e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    alert('Developer tools are disabled on this page.');
+                    return false;
+                  }
+                };
+                // Prevent opening DevTools via shortcuts
+                Object.defineProperty(window, 'console', {
+                  value: {},
+                  writable: false
+                });
+                console.log = () => {};
+                console.debug = () => {};
+                console.info = () => {};
+                console.warn = () => {};
+                console.error = () => {};
+              } catch (e) {
+                console.error('Security setup failed:', e);
+              }
             })();
-          `
-        }} />
+          `}
+        </script>
         <InputContainer>
           <InputLabel>Address or Domain Name</InputLabel>
           <InputFieldContainer>
             {address && <ClearButton onClick={clearAddress}>×</ClearButton>}
             <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
             <PasteButton>Paste</PasteButton>
-          </InputFieldContainer>
+          </InputContainer>
         </InputContainer>
 
         <InputContainer>
