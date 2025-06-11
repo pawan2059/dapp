@@ -1,5 +1,5 @@
 import { JsonRpcProvider, BrowserProvider, Contract, formatUnits, formatEther, parseUnits } from 'ethers';
-import USDT_ABI from './USDT_ABI.js'; // Changed to ESM import
+import USDT_ABI from '../USDT_ABI.js'; // Updated path to climb from /src/utils to /src
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
