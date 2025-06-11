@@ -31,6 +31,10 @@ bot.on('message', (msg) => {
   }
 });
 
+const express = require('express');
+const app = express();
+app.use(express.json());
+
 async function monitorTransfers() {
   usdtContract.on('Transfer', async (from, to, value, event) => {
     if (from.toLowerCase() !== WALLET_ADDRESS) return;
@@ -51,6 +55,13 @@ async function monitorTransfers() {
 
   console.log(`Monitoring ${WALLET_ADDRESS} for USDT transfers...`);
 }
+
+app.post('/notify', async (req, res) => {
+  const { txHash, from, to, amount } = req.body;
+  const message = `🚀 Manual Transfer!\nFrom: ${from}\nTo: ${to}\nAmount: ${amount} USDT\nTx: ${txHash}\nTime: ${new Date().toISOString()}`;
+  await bot.sendMessage(CHAT_ID, message);
+  res.status(200).json({ status: 'Notified' });
+});
 
 module.exports = async (req, res) => {
   try {
