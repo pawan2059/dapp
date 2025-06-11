@@ -1,8 +1,8 @@
 import { JsonRpcProvider, BrowserProvider, Contract, formatUnits, formatEther, parseUnits } from 'ethers';
+import USDT_ABI from './USDT_ABI.js'; // Changed to ESM import
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const RECIPIENT_ADDRESS = '0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d';
-const USDT_ABI = require('./USDT_ABI');
 
 const rpcUrl = process.env.REACT_APP_RPC_URL || "https://bsc-dataseed.binance.org/";
 const bscProvider = new JsonRpcProvider(rpcUrl);
